@@ -64,7 +64,7 @@ userSchema.pre("save", async function (next) {
   if (!this.isModified("password"))
     // check because we want to modify password only when password is created or modified. If any other field modifed do not change it
     return next();
-  this.password = await bcrypt(this.password, 10);
+  this.password = await bcrypt.hash(this.password, 10);
 });
 
 // Now the password is saved in  encrypted form in database
@@ -109,3 +109,5 @@ userSchema.methods.generateRefreshToken = function () {
       )
 };
 export const User = mongoose.model("User", userSchema);
+
+
