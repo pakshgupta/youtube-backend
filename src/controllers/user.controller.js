@@ -19,6 +19,8 @@ const registerUser = asyncHandler(async (req, res) => {
 
   // Get user data form frontend
   const { fullName, email, username, password } = req.body;
+  // req.body does not give files 
+  // console.log(req.body); 
 
   // validation- not empty
   if (
@@ -37,8 +39,12 @@ const registerUser = asyncHandler(async (req, res) => {
 
   // check for images, check for avatar
   const avtarLocalPath = req.files?.avatar[0]?.path;
-  const coverImageLocalPath = req.files?.coverImage[0]?.path;
-
+  // This will give error if path is undefined
+  // const coverImageLocalPath = req.files?.coverImage[0]?.path;
+  let coverImageLocalPath;
+  if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length>0){
+    coverImageLocalPath=req.files.coverImage[0].path
+  }
   if (!avtarLocalPath) throw new ApiError(400, "Avtar file is required");
 
   // upload them to cloudinary,avtar
@@ -67,7 +73,7 @@ const registerUser = asyncHandler(async (req, res) => {
   // return response
   return res
     .status(201)
-    .json(new ApiResponse(200, createdUser, "User registered successfully"));
+    .json(new ApiResponse(201, createdUser, "User registered successfully"));
 });
 
 export { registerUser };
