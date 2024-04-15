@@ -4,8 +4,7 @@ import { User } from "../models/user.models.js";
 import { uploadOnCloudnary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 const registerUser = asyncHandler(async (req, res) => {
-
-/* **************************STEPS************************************** */
+  /* **************************STEPS************************************** */
   // Get user data form frontend
   // validation- not empty
   // check if user already exist:username,email:-navitage to login
@@ -19,8 +18,8 @@ const registerUser = asyncHandler(async (req, res) => {
 
   // Get user data form frontend
   const { fullName, email, username, password } = req.body;
-  // req.body does not give files 
-  // console.log(req.body); 
+  // req.body does not give files
+  // console.log(req.body);
 
   // validation- not empty
   if (
@@ -42,8 +41,12 @@ const registerUser = asyncHandler(async (req, res) => {
   // This will give error if path is undefined
   // const coverImageLocalPath = req.files?.coverImage[0]?.path;
   let coverImageLocalPath;
-  if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length>0){
-    coverImageLocalPath=req.files.coverImage[0].path
+  if (
+    req.files &&
+    Array.isArray(req.files.coverImage) &&
+    req.files.coverImage.length > 0
+  ) {
+    coverImageLocalPath = req.files.coverImage[0].path;
   }
   if (!avtarLocalPath) throw new ApiError(400, "Avtar file is required");
 
@@ -75,5 +78,29 @@ const registerUser = asyncHandler(async (req, res) => {
     .status(201)
     .json(new ApiResponse(201, createdUser, "User registered successfully"));
 });
+const loginUser = asyncHandler(async (req, res) => {
+  // username and password
+  // find the user
+  // validation
+  // access token and refresh token
+  // send cookies
 
+  const { username, email, password } = req.body;
+  if (!username || !email) {
+    throw new ApiError(400, "username or email is required");
+  }
+  const user = await User.findOne({
+    $or: [{ username }, { email }],
+  });
+  if (!user) {
+  throw new ApiError(404, "User does not exist");
+  }
+  // we use user instead of User because isPasswordCorrect function in not a build in function of mongoose which can be accessed by User
+  // That is the reason we use user 
+  const isPasswordValid=await user.isPasswordCorrect(password);
+  if(!isPasswordValid){
+    throw new ApiError(401, "Invalid user credentials");
+  }
+
+});
 export { registerUser };
