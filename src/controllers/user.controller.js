@@ -185,7 +185,8 @@ const logoutUser = asyncHandler(async (req, res) => {
 });
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-  const incomingRefreshToken = req.cookies.refreshToken || req.body;
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken;
   if (!incomingRefreshToken) {
     throw new ApiError(401, "Unauthorized request");
   }
@@ -201,20 +202,21 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     if (incomingRefreshToken !== user?.refreshToken) {
       throw new ApiError(401, "Refresh Token is expeired or used");
     }
-    const { accessToken, newRefreshToken } =
-      await generateAccessAndRefreshToken(user._id);
     const options = {
       httpOnly: true,
       secure: true,
     };
+    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(
+      user._id
+    );
     return res
       .status(200)
       .cookie("accessToken", accessToken, options)
-      .cookie("refreshToken", newRefreshToken, options)
+      .cookie("refreshToken", refreshToken, options)
       .json(
         new ApiResponse(
           200,
-          { accessToken, refreshToken: newRefreshToken },
+          { accessToken, refreshToken },
           "Access Token Refreshed"
         )
       );
@@ -225,7 +227,10 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
 const changeCurrentPassword = asyncHandler(async (req, res) => {
   const { oldPassword, newPassword } = req.body;
-  const user = await User.findById(user?._id);
+  const user = await User.findById(req.user?._id);
+  if (!user) {
+    throw new ApiError(400, "User not found");
+  }
   const passwordCorrect = await user.isPasswordCorrect(oldPassword);
   if (!passwordCorrect) {
     throw new ApiError(401, "Invalid password");
@@ -381,6 +386,8 @@ const getWatchHistory = asyncHandler(async (req, res) => {
       $match: {
         _id: new mongoose.Types.ObjectId(req.user._id),
       },
+    },
+    {
       $lookup: {
         from: "videos",
         localField: "watchHistory",
@@ -390,7 +397,7 @@ const getWatchHistory = asyncHandler(async (req, res) => {
           {
             $lookup: {
               from: "users",
-              localStorage: "owner",
+              localField: "owner",
               foreignField: "_id",
               as: "owner",
               pipeline: [
@@ -417,7 +424,13 @@ const getWatchHistory = asyncHandler(async (req, res) => {
   ]);
   return res
     .status(200)
-    .json(new ApiResponse(200, user[0].watchHistory, "Watch History fetched successfully"));
+    .json(
+      new ApiResponse(
+        200,
+        user[0].watchHistory,
+        "Watch History fetched successfully"
+      )
+    );
 });
 
 export {
