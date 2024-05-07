@@ -5,13 +5,68 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 const getVideoComments = asyncHandler(async (req, res) => {
-  //TODO: get all comments for a video
   const { videoId } = req.params;
   const { page = 1, limit = 10 } = req.query;
+  if (!isValidObjectId(videoId)) throw new ApiError(400, "Invalid videoId");
+  const getComments = await Comment.aggregate([
+    {
+      $match: {
+        video: new mongoose.Types.ObjectId(videoId),
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "owner",
+        foreignField: "_id",
+        as: "owners",
+      },
+    },
+    {
+      $lookup: {
+        from: "likes",
+        localField: "_id",
+        foreignField: "comment",
+        as: "likes",
+      },
+    },
+    {
+      $addFields: {
+        likesCount: {
+          $size: "$likes",
+        },
+        owner: {
+          $first: "$owners",
+        },
+        isLikedBy: {
+          $cond: {
+            if: {
+              $in: [req.user?._id, "$likes.likedBy"],
+            },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+  ]);
+  if (!getComments) {
+    throw new ApiError(500, "Internal Server Error while getting comments");
+  }
+  const options = {
+    page: parseInt(page, 10),
+    limit: parseInt(limit, 10),
+  };
+  const comments = await Comment.aggregatePaginate(getComments, options);
+  if (!comments) {
+    throw new ApiError(500, "Error while loading comments");
+  }
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Comments fetched successfully"));
 });
 
 const addComment = asyncHandler(async (req, res) => {
-  // TODO: add a comment to a video
   const { vidoeId } = req.params;
   const { content } = req.body;
   if (!isValidObjectId(vidoeId)) {
